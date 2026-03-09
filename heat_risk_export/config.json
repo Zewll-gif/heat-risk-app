@@ -1,0 +1,53 @@
+{
+  "TIME_STEPS": 168,
+  "HORIZON": 24,
+  "FEATURES": [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "wind_speed_10m",
+    "sin_hour",
+    "cos_hour",
+    "sin_doy",
+    "cos_doy",
+    "elevation_norm",
+    "zone_id"
+  ],
+  "P50": 26.08309379656003,
+  "P95": 36.579321616,
+  "ZONES": [
+    [
+      "เมือง",
+      18.79,
+      98.98,
+      310
+    ],
+    [
+      "เหนือ",
+      20.05,
+      99.89,
+      450
+    ],
+    [
+      "ใต้",
+      18.18,
+      98.64,
+      390
+    ],
+    [
+      "ตะวันออก",
+      18.97,
+      99.63,
+      380
+    ],
+    [
+      "ภูเขา",
+      18.59,
+      98.49,
+      2565
+    ]
+  ],
+  "FORECAST_ZONE": "เมือง",
+  "START_DATE": "2013-01-01",
+  "END_DATE": "2023-12-31",
+  "framework": "pytorch"
+}

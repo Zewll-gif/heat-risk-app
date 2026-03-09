@@ -1,0 +1,55 @@
+{
+  "time_steps": 168,
+  "horizon": 24,
+  "features": [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "wind_speed_10m",
+    "sin_hour",
+    "cos_hour",
+    "sin_doy",
+    "cos_doy",
+    "elevation_norm",
+    "zone_id"
+  ],
+  "p50": 36.678,
+  "p95": 43.361,
+  "zones": [
+    [
+      "ใจกลาง",
+      13.752,
+      100.494,
+      4
+    ],
+    [
+      "เหนือ",
+      13.9,
+      100.57,
+      6
+    ],
+    [
+      "ใต้",
+      13.62,
+      100.53,
+      2
+    ],
+    [
+      "ตะวันออก",
+      13.75,
+      100.75,
+      3
+    ],
+    [
+      "ตะวันตก",
+      13.75,
+      100.38,
+      5
+    ]
+  ],
+  "forecast_zone": "ใจกลาง",
+  "model_file": "model.pt",
+  "framework": "pytorch",
+  "area": "bangkok",
+  "start_date": "2014-01-01",
+  "end_date": "2023-12-31"
+}

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23ff5c2b' d='M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z'/></svg>"><link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <svg class="logo-flame" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+    </svg>
+    <div>
+      <div class="logo-title">HeatGuard</div>
+      <div class="logo-sub">Bangkok</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <!-- ✅ ข้อ 1: ลด nav-svg จาก 16px → 14px และ stroke-width ให้บางลง -->
+    <button class="nav-btn active" data-panel="map" onclick="showPanel('map')">
+      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/></svg>
+      <span>แผนที่</span>
+    </button>
+    <button class="nav-btn" data-panel="forecast" onclick="showPanel('forecast')">
+      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span>พยากรณ์ 24h</span>
+    </button>
+    <button class="nav-btn" data-panel="simulate" onclick="showPanel('simulate')">
+      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>จำลองสถานการณ์</span>
+    </button>
+    <button class="nav-btn" data-panel="personal" onclick="showPanel('personal')">
+      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>ความเสี่ยงส่วนตัว</span>
+    </button>
+    <button class="nav-btn" data-panel="chat" onclick="showPanel('chat')">
+      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>AI ผู้ช่วย</span>
+    </button>
+  </nav>
+
+  <div class="weather-card" id="weatherCard">
+    <div class="weather-loading">กำลังโหลด...</div>
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="live-clock" id="liveClock"></div>
+    <div class="theme-switcher">
+      <button class="theme-btn" data-theme="dark"   onclick="applyTheme('dark')"   title="Dark">D</button>
+      <button class="theme-btn" data-theme="light"  onclick="applyTheme('light')"  title="Light">L</button>
+      <button class="theme-btn" data-theme="sunset" onclick="applyTheme('sunset')" title="Sunset">S</button>
+      <button class="theme-btn" data-theme="forest" onclick="applyTheme('forest')" title="Forest">F</button>
+    </div>
+  </div>
+</aside>
+
+<div class="main-content">
+
+  <!-- MAP -->
+  <section class="panel active" id="panel-map">
+    <div class="panel-header">
+      <h1>แผนที่ความเสี่ยง</h1>
+      <div class="layer-controls">
+        <label class="layer-toggle">
+          <input type="checkbox" id="toggleRisk" checked onchange="toggleLayer('risk')">
+          <span class="toggle-chip risk">Risk Layer</span>
+        </label>
+        <label class="layer-toggle">
+          <input type="checkbox" id="toggleMarker" checked onchange="toggleLayer('marker')">
+          <span class="toggle-chip marker">Markers</span>
+        </label>
+      </div>
+      <button class="btn-locate" onclick="locateMe()">ตำแหน่งของฉัน</button>
+    </div>
+    <div class="basemap-picker" id="basemapPicker" style="margin-bottom:.75rem"></div>
+    <div class="map-wrapper">
+      <div id="map"></div>
+      <div class="map-legend">
+        <div class="legend-title">ระดับความเสี่ยง</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fee08b"></div>ต่ำ</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fc8d59"></div>ปานกลาง</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e34a33"></div>สูง</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#7f0000"></div>วิกฤต</div>
+      </div>
+      <div class="top5-panel" id="top5Panel"></div>
+    </div>
+  </section>
+
+  <!-- FORECAST -->
+  <section class="panel" id="panel-forecast">
+    <div class="panel-header">
+      <h1>พยากรณ์อุณหภูมิ 24h</h1>
+      <div class="source-selector">
+        <span class="source-label">แหล่งข้อมูล</span>
+        <button class="source-btn active" id="srcBtn-openmeteo"   onclick="switchSource('openmeteo')">Open-Meteo</button>
+        <button class="source-btn"        id="srcBtn-openweather" onclick="switchSource('openweather')">OpenWeather</button>
+      </div>
+    </div>
+    <!-- ✅ ข้อ 2: stat-card SVG ลดลง และ stroke-width เบาลง -->
+    <div class="forecast-grid">
+      <div class="stat-card">
+        <svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.4"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+        <div class="stat-val" id="fc-temp-val">--</div>
+        <div class="stat-label">Heat Index สูงสุด</div>
+      </div>
+      <div class="stat-card">
+        <svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="1.4"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div class="stat-val" id="fc-hazard-val">--</div>
+        <div class="stat-label">Hazard Score</div>
+      </div>
+      <div class="stat-card">
+        <svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent3)" stroke-width="1.4"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+        <div class="stat-val" id="fc-level-val">--</div>
+        <div class="stat-label">ระดับความเสี่ยง</div>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <!-- ✅ ข้อ 3: เพิ่ม HI toggle button -->
+      <div class="chart-layer-bar">
+        <button class="layer-eye-btn active" id="eyeBtn-actual" onclick="toggleChartLayer(0)" title="อุณหภูมิ Open-Meteo">
+          <svg class="eye-icon" id="eyeIcon-actual" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="eye-dot" style="background:rgba(74,158,255,.5)"></span>
+          <span class="eye-label">🌡️ อุณหภูมิ</span>
+        </button>
+        <button class="layer-eye-btn active" id="eyeBtn-pred" onclick="toggleChartLayer(1)" title="HI Open-Meteo ย้อนหลัง+อนาคต">
+          <svg class="eye-icon" id="eyeIcon-pred" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="eye-dot" style="background:#4a9eff"></span>
+          <span class="eye-label">🔵 HI Open-Meteo</span>
+        </button>
+        <button class="layer-eye-btn active" id="eyeBtn-hi" onclick="toggleChartLayer(2)" title="HI OpenWeather เปรียบเทียบ">
+          <svg class="eye-icon" id="eyeIcon-hi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="eye-dot" style="background:#ffb347"></span>
+          <span class="eye-label">🟠 HI OpenWeather</span>
+        </button>
+        <button class="layer-eye-btn active" id="eyeBtn-model" onclick="toggleChartLayer(3)" title="HI โมเดล LSTM พยากรณ์">
+          <svg class="eye-icon" id="eyeIcon-model" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="eye-dot" style="background:#ff2b6b"></span>
+          <span class="eye-label">🔴 HI โมเดล LSTM</span>
+        </button>
+      </div>
+      <div class="chart-container"><canvas id="forecastChart"></canvas></div>
+    </div>
+    <div class="forecast-source" id="forecastSource"></div>
+    <div class="tambon-table-wrap">
+      <h2>ความเสี่ยงรายเขต</h2>
+      <div id="tambonTable"></div>
+    </div>
+  </section>
+
+  <!-- SIMULATE -->
+  <section class="panel" id="panel-simulate">
+    <div class="panel-header">
+      <h1>จำลองสถานการณ์</h1>
+    </div>
+
+    <div class="sim-grid">
+      <div class="sim-control">
+        <label>อุณหภูมิ: <b id="val-temp">35</b> °C</label>
+        <input type="range" id="sim-temp" min="20" max="45" value="35" step="0.5"
+          oninput="document.getElementById('val-temp').textContent=this.value; autoSimulate()">
+      </div>
+      <div class="sim-control">
+        <label>ความชื้น: <b id="val-rh">70</b> %</label>
+        <input type="range" id="sim-rh" min="20" max="100" value="70" step="1"
+          oninput="document.getElementById('val-rh').textContent=this.value; autoSimulate()">
+      </div>
+      <div class="sim-control">
+        <label>ลม: <b id="val-ws">5</b> km/h</label>
+        <input type="range" id="sim-ws" min="0" max="30" value="5" step="0.5"
+          oninput="document.getElementById('val-ws').textContent=this.value; autoSimulate()">
+      </div>
+    </div>
+
+    <div class="sim-result">
+      <div>
+        <div class="sim-hi" id="sim-hi-val">-- °C</div>
+        <div class="sim-hz">Heat Index</div>
+      </div>
+      <div>
+        <div class="sim-hi" id="sim-hz-val" style="color:var(--accent3)">--</div>
+        <div class="sim-hz">Hazard Score</div>
+      </div>
+      <div class="risk-meter">
+        <div class="risk-fill" id="simRiskFill"></div>
+        <span class="risk-label" id="simRiskLabel">--</span>
+      </div>
+    </div>
+
+    <div class="basemap-picker" id="simBasemapPicker" style="margin-bottom:.75rem"></div>
+
+    <div id="simMapWrapper" style="position:relative;height:440px;border:1px solid var(--border);border-radius:14px;overflow:hidden">
+      <div id="simMap" style="width:100%;height:100%"></div>
+      <div class="map-legend">
+        <div class="legend-title">ระดับความเสี่ยง</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fee08b"></div>ต่ำ</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fc8d59"></div>ปานกลาง</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e34a33"></div>สูง</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#7f0000"></div>วิกฤต</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERSONAL -->
+  <section class="panel" id="panel-personal">
+    <div class="panel-header">
+      <h1>ประเมินความเสี่ยงส่วนตัว</h1>
+    </div>
+    <div class="personal-grid">
+      <div class="photo-box">
+        <div style="font-size:.85rem;color:var(--text2);margin-bottom:.5rem">ถ่ายภาพหรืออัปโหลดเพื่อให้ Face++ ประเมินอายุ</div>
+        <div class="photo-area" onclick="document.getElementById('photoInput').click()">
+          <video id="camVideo" autoplay playsinline style="display:none;width:100%;height:100%;object-fit:cover"></video>
+          <img id="photoPreview" style="display:none;width:100%;height:100%;object-fit:cover">
+          <div class="photo-placeholder" id="camPlaceholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="opacity:.35"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <div style="margin-top:.5rem;font-size:.85rem">คลิกเพื่ออัปโหลดภาพ</div>
+            <div style="font-size:.75rem;color:var(--text2)">หรือใช้ปุ่มกล้องด้านล่าง</div>
+          </div>
+        </div>
+        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(this)">
+        <div style="display:flex;gap:.5rem">
+          <button class="btn-secondary" id="btnOpenCam"  onclick="openCamera()"       style="flex:1">เปิดกล้อง</button>
+          <button class="btn-secondary" id="btnSnapCam"  onclick="snapAndEstimate()"  style="display:none;flex:1">ถ่ายภาพ</button>
+          <button class="btn-secondary" id="btnCloseCam" onclick="closeCamera()"      style="display:none;flex:1">ปิดกล้อง</button>
+        </div>
+        <div class="age-result" id="ageResult" style="display:none"></div>
+      </div>
+
+      <div class="personal-form">
+        <div class="form-group">
+          <label>อายุ (ปี) — Face++ จะกรอกให้อัตโนมัติ</label>
+          <input type="number" class="form-input" id="inp-age" placeholder="เช่น 65" min="1" max="120">
+        </div>
+        <div class="form-group">
+          <label>ตำบลที่อยู่อาศัย</label>
+          <select class="form-input" id="inp-tambon">
+            <option value="">— เลือกตำบล —</option>
+          </select>
+        </div>
+        <label class="checkbox-label">
+          <input type="checkbox" id="inp-disease">
+          มีโรคประจำตัว (เบาหวาน, ความดัน, หัวใจ ฯลฯ)
+        </label>
+        <div class="score-breakdown" id="scoreBreakdown" style="display:none">
+          <div class="breakdown-row"><span class="breakdown-label">สภาพอากาศ × 0.40</span><span class="breakdown-val" id="bd-hazard">--</span></div>
+          <div class="breakdown-row"><span class="breakdown-label">ปัจจัยอายุ × 0.35</span><span class="breakdown-val" id="bd-age">--</span></div>
+          <div class="breakdown-row"><span class="breakdown-label">ความเสี่ยงพื้นที่ × 0.25</span><span class="breakdown-val" id="bd-tambon">--</span></div>
+        </div>
+        <div style="display:flex;gap:.75rem">
+          <button class="btn-secondary" onclick="locateAndFill()">ตรวจจับตำแหน่ง</button>
+          <button class="btn-primary" onclick="analyzeRisk()" style="flex:1">คำนวณความเสี่ยง</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="personal-result" id="personalResult" style="display:none">
+      <div class="result-score-ring">
+        <svg viewBox="0 0 120 120">
+          <circle class="ring-bg"   cx="60" cy="60" r="50"/>
+          <circle class="ring-fill" id="ringFill" cx="60" cy="60" r="50" stroke-dasharray="314" stroke-dashoffset="314"/>
+        </svg>
+        <div class="ring-text">
+          <div class="ring-score" id="ringScore">--</div>
+          <div class="ring-level" id="ringLevel">--</div>
+        </div>
+      </div>
+      <div class="result-explanation" id="resultExplanation"></div>
+    </div>
+  </section>
+
+  <!-- CHAT -->
+  <section class="panel" id="panel-chat">
+    <div class="panel-header">
+      <h1>AI ผู้ช่วย</h1>
+      <span style="font-size:.75rem;color:var(--text2);font-family:'Space Mono',monospace">Typhoon LLM</span>
+    </div>
+    <div class="chat-container">
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-msg bot">
+          <div class="chat-bubble">สวัสดีครับ ผมคือ AI ผู้ช่วยด้านความเสี่ยง Heat Stroke ในกรุงเทพมหานคร<br>ถามได้เลยครับ เช่น สภาพอากาศวันนี้ เขตไหนเสี่ยงสูง หรือควรระวังอะไรบ้าง</div>
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <div class="quick-questions">
+          <button onclick="quickAsk('ตอนนี้อากาศอันตรายไหม?')">สภาพอากาศตอนนี้</button>
+          <button onclick="quickAsk('เขตไหนเสี่ยงสูงสุด?')">เขตเสี่ยงสูงสุด</button>
+          <button onclick="quickAsk('ผู้สูงอายุควรปฏิบัติตัวอย่างไร?')">คำแนะนำผู้สูงอายุ</button>
+          <button onclick="quickAsk('อาการ Heat Stroke มีอะไรบ้าง?')">อาการ Heat Stroke</button>
+        </div>
+        <div class="chat-input-wrap">
+          <input class="chat-input" id="chatInput" placeholder="พิมพ์คำถามที่นี่...">
+          <button class="chat-send" onclick="sendChat()">ส่ง</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="/static/js/main.js"></script>
+</body>
+</html>
