@@ -1,4 +1,4 @@
-# app.py — Heat Risk Web App (FastAPI) — PyTorch LSTM + OpenWeather
+# app.py — Heat Risk Web App (FastAPI) — ONNX Runtime LSTM + OpenWeather
 import os, json, math, pickle, base64
 from pathlib import Path
 from datetime import datetime
@@ -22,7 +22,6 @@ load_dotenv(Path(__file__).parent / ".env", override=True)
 BASE          = Path(__file__).parent
 TZ_BKK        = ZoneInfo("Asia/Bangkok")
 
-# ✅ ข้อ 1 & 3: พิกัดกรุงเทพมหานคร
 LAT           = float(os.getenv("LAT", 13.7564))
 LON           = float(os.getenv("LON", 100.5988))
 CITY_NAME     = "กรุงเทพมหานคร"
@@ -40,35 +39,29 @@ FACEPP_DETECT = "https://api-us.faceplusplus.com/facepp/v3/detect"
 
 _client = OpenAI(api_key=TYPHOON_KEY, base_url=TYPHOON_BASE)
 
-import torch, torch.nn as nn
+# ── ONNX Runtime (แทน torch) ──────────────────────────────────────────────────
+import onnxruntime as ort
 
-class LSTMHeatModel(nn.Module):
-    def __init__(self, input_size, hidden_size=128, num_layers=2, horizon=24, dropout=0.2):
-        super().__init__()
-        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size,
-                            num_layers=num_layers, batch_first=True, dropout=dropout)
-        self.fc = nn.Sequential(nn.Linear(hidden_size,64), nn.ReLU(),
-                                nn.Dropout(dropout), nn.Linear(64,horizon))
-    def forward(self, x):
-        out, _ = self.lstm(x); return self.fc(out[:,-1])
-
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = None  # onnxruntime InferenceSession
 try:
     cfg = json.loads((BASE/"config.json").read_text(encoding="utf-8"))
     FEATURES=cfg["features"]; TS=cfg["time_steps"]; HORIZON=cfg.get("horizon",24)
     P50=cfg["p50"]; P95=cfg["p95"]
-    ZONES=cfg.get("zones",[["พระนคร",13.7563,100.4942,4],["สุขุมวิท",13.7310,100.5645,6],["ลาดกระบัง",13.7278,100.7731,2],["มีนบุรี",13.8150,100.7150,3],["บางนา",13.6670,100.5995,5]]); FORECAST_ZONE=cfg.get("forecast_zone","พระนคร")
-    ckpt=torch.load(BASE/"model.pt", map_location=DEVICE, weights_only=False)
-    mc=ckpt.get("model_config",{"input_size":len(FEATURES),"hidden_size":128,"num_layers":2,"horizon":HORIZON,"dropout":0.2})
-    model=LSTMHeatModel(**mc).to(DEVICE); model.load_state_dict(ckpt["model_state_dict"]); model.eval()
+    ZONES=cfg.get("zones",[["พระนคร",13.7563,100.4942,4],["สุขุมวิท",13.7310,100.5645,6],["ลาดกระบัง",13.7278,100.7731,2],["มีนบุรี",13.8150,100.7150,3],["บางนา",13.6670,100.5995,5]])
+    FORECAST_ZONE=cfg.get("forecast_zone","พระนคร")
+
+    onnx_path = BASE/"model.onnx"
+    model = ort.InferenceSession(str(onnx_path), providers=["CPUExecutionProvider"])
+    INPUT_NAME  = model.get_inputs()[0].name
+    OUTPUT_NAME = model.get_outputs()[0].name
+
     with open(BASE/"scaler.pkl","rb") as f: scaler=pickle.load(f)
-    print(f"✅ PyTorch Model loaded | Device: {DEVICE} | Features: {len(FEATURES)} | TS: {TS}")
+    print(f"✅ ONNX Model loaded | Features: {len(FEATURES)} | TS: {TS}")
 except Exception as e:
     print(f"⚠️  Model load failed: {e}"); model=scaler=None
     P50=30.0; P95=42.0; HORIZON=24
     FEATURES=["temperature_2m","relative_humidity_2m","wind_speed_10m","sin_hour","cos_hour","sin_doy","cos_doy","elevation_norm","zone_id"]
     TS=168
-    # ✅ โซนกรุงเทพ
     ZONES=[["พระนคร",13.7563,100.4942,4],["สุขุมวิท",13.7310,100.5645,6],["ลาดกระบัง",13.7278,100.7731,2],["มีนบุรี",13.8150,100.7150,3],["บางนา",13.6670,100.5995,5]]
     FORECAST_ZONE="พระนคร"
 
@@ -203,10 +196,10 @@ def predict_24h(hourly_t, hourly_rh, hourly_ws, hourly_time=None):
                      math.sin(2*math.pi*doy/365),math.cos(2*math.pi*doy/365),en,zin])
     while len(rows)<TS: rows.insert(0,rows[0])
     rows=rows[-TS:]
-    import numpy as np
     X=scaler.transform(np.array(rows, dtype=float))
-    Xt=torch.tensor(X[np.newaxis],dtype=torch.float32).to(DEVICE)
-    with torch.no_grad(): pred24=model(Xt).cpu().numpy()[0].tolist()
+    # ── ONNX inference ──
+    Xt = X[np.newaxis].astype(np.float32)          # (1, TS, features)
+    pred24 = model.run([OUTPUT_NAME], {INPUT_NAME: Xt})[0][0].tolist()
     pred24=[round(float(v),2) for v in pred24]
     return {**hazard_from_hi(max(pred24)),"forecast_24h":pred24}
 
@@ -235,12 +228,6 @@ async def api_weather(source:str="openmeteo"):
 
 @app.get("/api/forecast")
 async def api_forecast(source:str="openmeteo"):
-    """
-    กราฟแสดง 3 เส้น:
-      1) HI_openmeteo  — HI คำนวณจาก Open-Meteo hourly (ย้อนหลัง 24h + อนาคต 24h)
-      2) HI_owm        — HI คำนวณจาก OpenWeather current + forecast 3h (เปรียบเทียบ)
-      3) HI_model      — HI จากโมเดล LSTM 24h ข้างหน้า (เริ่ม now)
-    """
     try:
         from datetime import timedelta
 
@@ -248,19 +235,13 @@ async def api_forecast(source:str="openmeteo"):
         now_iso=nb.strftime("%Y-%m-%dT%H:00")
         base_dt=nb.replace(minute=0,second=0,microsecond=0)
 
-        # ── 1) Open-Meteo: ย้อนหลัง 24h + อนาคต 24h ────────────────────────────
         om=await fetch_openmeteo()
         res=predict_24h(om["hourly_temp"],om["hourly_rh"],om["hourly_ws"],om["hourly_time"])
 
-        # สร้าง timeline กว้าง: past 24h → future 24h
         om_times_full=[]
         for h in range(-24,25):
             om_times_full.append((base_dt+timedelta(hours=h)).strftime("%Y-%m-%dT%H:00"))
 
-        # map temp+rh จาก openmeteo hourly (past_days=1, forecast_days=2 → ครอบ -24..+48)
-        ht=om.get("hourly_temp",[]); hr=om.get("hourly_rh",[]); htimes=om.get("hourly_time",[])
-        # rebuild full hourly maps จาก raw data (past+future ที่ fetch มา)
-        # fetch raw อีกครั้งด้วย window ใหญ่ขึ้น
         async with httpx.AsyncClient(timeout=12) as client:
             raw=await client.get("https://api.open-meteo.com/v1/forecast",params={
                 "latitude":LAT,"longitude":LON,
@@ -285,14 +266,10 @@ async def api_forecast(source:str="openmeteo"):
                 chart_hi_om.append(None)
                 chart_temp_om.append(None)
 
-        now_idx=24  # index 24 = now (เริ่มจาก -24h)
+        now_idx=24
 
-        # ── 2) OpenWeather: HI ย้อนหลัง (ใช้ Open-Meteo rh) + อนาคต (OWM forecast) ─
-        # OWM free tier ไม่มี historical → ใช้ Open-Meteo temp/rh สำหรับช่วงอดีต
-        # แต่ปรับด้วย OWM current เป็น anchor ที่ now เพื่อให้ค่า now ตรงกับ OWM
         chart_hi_owm=[None]*len(chart_times)
 
-        # helper
         def owm_ts(dt_txt: str) -> str:
             return dt_txt[:13].replace(" ","T") + ":00"
 
@@ -304,35 +281,25 @@ async def api_forecast(source:str="openmeteo"):
                     rf=await client.get("https://api.openweathermap.org/data/2.5/forecast",
                         params={"lat":LAT,"lon":LON,"appid":OWM_KEY,"units":"metric","cnt":16})
                 cur_o=rc.json(); fct_o=rf.json()
-
                 owm_now_t=float(cur_o["main"]["temp"])
                 owm_now_r=float(cur_o["main"]["humidity"])
-
-                # ── ช่วงอดีต: ใช้ Open-Meteo temp/rh (มีข้อมูลจริงย้อนหลัง)
-                # แต่ scale ด้วย ratio จาก OWM@now vs OM@now เพื่อให้ต่อเนื่อง
                 om_now_t=om_t_map.get(now_iso, owm_now_t)
                 om_now_r=om_rh_map.get(now_iso, owm_now_r)
                 t_ratio=(owm_now_t/om_now_t) if om_now_t else 1.0
                 r_ratio=(owm_now_r/om_now_r) if om_now_r else 1.0
-
                 for i,ts in enumerate(chart_times):
                     if ts <= now_iso:
-                        # ย้อนหลัง: ใช้ OM data scale ด้วย ratio ให้ smooth join
                         tv=om_t_map.get(ts); rv=om_rh_map.get(ts)
                         if tv is not None and rv is not None:
-                            # blend ratio: ยิ่งไกล now ยิ่งใช้ OM ล้วนๆ, ใกล้ now ค่อยๆ scale
-                            dist=max(0, now_idx-i)  # ชั่วโมงก่อน now
-                            blend=max(0.0, 1.0-dist/24.0)  # 0=ห่างมาก, 1=now
+                            dist=max(0, now_idx-i)
+                            blend=max(0.0, 1.0-dist/24.0)
                             adj_t=float(tv)*(1+blend*(t_ratio-1))
                             adj_r=float(rv)*(1+blend*(r_ratio-1))
                             chart_hi_owm[i]=round(calc_heat_index(adj_t,adj_r),2)
-
-                # ── ช่วงอนาคต: OWM forecast interpolate 1h
                 owm_fct_map={}
                 owm_fct_map[now_iso]=(owm_now_t, owm_now_r)
                 flist=fct_o.get("list",[])
                 prev_ts=now_iso; prev_t=owm_now_t; prev_r=owm_now_r
-
                 for fx in flist:
                     fx_ts=owm_ts(fx["dt_txt"])
                     fx_t=float(fx["main"]["temp"]); fx_r=float(fx["main"]["humidity"])
@@ -349,24 +316,14 @@ async def api_forecast(source:str="openmeteo"):
                                 +timedelta(hours=s)).strftime("%Y-%m-%dT%H:00")
                         owm_fct_map[isokey]=(it, ir)
                     prev_ts=fx_ts; prev_t=fx_t; prev_r=fx_r
-
                 for i,ts in enumerate(chart_times):
                     if ts > now_iso and ts in owm_fct_map:
                         tv2,rv2=owm_fct_map[ts]
                         chart_hi_owm[i]=round(calc_heat_index(tv2,rv2),2)
-
             except Exception as oe:
                 import traceback; traceback.print_exc()
                 print(f"OWM fetch error: {oe}")
 
-        # ── 3) HI โมเดล LSTM ทั้งย้อนหลัง 24h และอนาคต 24h ────────────────────
-        # sliding-window predict: เลื่อน window ทีละ 1h ตลอด chart_times
-        # raw hourly จาก Open-Meteo (past_days=2) ใช้เป็น ground-truth input
-        raw_t_list=[om_t_map.get(ts) for ts in chart_times]
-        raw_r_list=[om_rh_map.get(ts) for ts in chart_times]
-
-        # สร้าง window ขนาด TS จากข้อมูลดิบ (เริ่มก่อน chart_times)
-        # ดึง extended raw data: ต้องการ TS ชั่วโมงก่อน chart_times[0]
         async with httpx.AsyncClient(timeout=12) as client:
             ext=await client.get("https://api.open-meteo.com/v1/forecast",params={
                 "latitude":LAT,"longitude":LON,
@@ -387,7 +344,6 @@ async def api_forecast(source:str="openmeteo"):
             em=max(z[3] for z in ZONES); en_z=ZONES[fi][3]/em; zin=fi/max(len(ZONES)-1,1)
             fallback_row=[30.0,70.0,5.0,0.0,1.0,0.0,1.0,en_z,zin]
 
-            # สร้าง window matrix สำหรับทุก point พร้อมกัน แล้ว batch predict ครั้งเดียว
             batch_X=[]
             valid_idx=[]
             for ci,ts in enumerate(chart_times):
@@ -409,20 +365,18 @@ async def api_forecast(source:str="openmeteo"):
                 valid_idx.append(ci)
 
             try:
-                # batch transform + batch inference ครั้งเดียว
-                arr=np.array(batch_X, dtype=float)          # (N, TS, 9)
+                arr=np.array(batch_X, dtype=float)
                 N=arr.shape[0]
-                flat=arr.reshape(-1, arr.shape[-1])         # (N*TS, 9)
+                flat=arr.reshape(-1, arr.shape[-1])
                 flat_s=scaler.transform(flat)
-                arr_s=flat_s.reshape(N, TS, -1)             # (N, TS, 9)
-                Xt=torch.tensor(arr_s, dtype=torch.float32).to(DEVICE)
-                with torch.no_grad(): preds=model(Xt).cpu().numpy()  # (N, horizon)
+                arr_s=flat_s.reshape(N, TS, -1).astype(np.float32)
+                # ── ONNX batch inference ──
+                preds = model.run([OUTPUT_NAME], {INPUT_NAME: arr_s})[0]  # (N, horizon)
                 for k,ci in enumerate(valid_idx):
                     chart_hi_model[ci]=round(float(preds[k][0]),2)
             except Exception as me:
-                print(f"LSTM batch predict error: {me}")
+                print(f"ONNX batch predict error: {me}")
         else:
-            # fallback: คำนวณ HI จาก OM data โดยตรง
             for ci,ts in enumerate(chart_times):
                 tv=ext_t_map.get(ts); rv=ext_r_map.get(ts)
                 if tv is not None and rv is not None:
@@ -434,10 +388,10 @@ async def api_forecast(source:str="openmeteo"):
             "now_time":now_iso,
             "now_idx":now_idx,
             "chart_times":chart_times,
-            "chart_temp_om":chart_temp_om,      # อุณหภูมิ Open-Meteo
-            "chart_hi_om":chart_hi_om,           # HI Open-Meteo (ย้อนหลัง+อนาคต)
-            "chart_hi_owm":chart_hi_owm,         # HI OpenWeather (now+forecast)
-            "chart_hi_model":chart_hi_model,     # HI โมเดล LSTM (อนาคต 24h)
+            "chart_temp_om":chart_temp_om,
+            "chart_hi_om":chart_hi_om,
+            "chart_hi_owm":chart_hi_owm,
+            "chart_hi_model":chart_hi_model,
             "owm_available":bool(OWM_KEY),
             "source":"Open-Meteo + OpenWeather",
             "updated_at":om["updated_at"],
@@ -509,7 +463,6 @@ async def api_personal_risk(req:PersonalRisk):
         elif ps>=0.20: lv="ปานกลาง"
         else: lv="ต่ำ"
         ctx=retrieve(f"heat stroke อายุ {req.age} ปี {lv} เขต {req.tambon} กรุงเทพ")
-        # ✅ ข้อ 1: prompt เปลี่ยนเป็นกรุงเทพมหานคร
         prompt=f"""คุณเป็นระบบวิเคราะห์ความเสี่ยง Heat Stroke สำหรับพื้นที่กรุงเทพมหานคร
 
 === สภาพอากาศปัจจุบัน (แหล่ง: {w.get('source','')}) ===
@@ -545,9 +498,8 @@ class ChatRequest(BaseModel):
 async def api_chat(req:ChatRequest):
     try:
         ctx=retrieve(req.message); w=await fetch_weather_now(req.source); hz=hazard_from_hi(w["heat_index"])
-        # ✅ ข้อ 1: AI รู้ว่าอยู่กรุงเทพ
         prompt=f"""คุณเป็นผู้เชี่ยวชาญด้านความเสี่ยง Heat Stroke พื้นที่กรุงเทพมหานคร แต่ถ้าผู้ใช้ชวนคุยเล่นหรือนอกเรื่องคุณก็สามารถตอบเล่นได้ ไม่จำเป็นต้องดึงเข้าประเด็นสภาพอากาศตลอดเวลา
-ระบบใช้ PyTorch LSTM ฝึกจากข้อมูลอุณหภูมิกรุงเทพฯ
+ระบบใช้ ONNX LSTM ฝึกจากข้อมูลอุณหภูมิกรุงเทพฯ
 กรุงเทพมหานครมีปรากฏการณ์ Urban Heat Island ทำให้อุณหภูมิในเมืองสูงกว่าปกติ 3–5°C
 
 === ข้อมูลปัจจุบัน (แหล่ง: {w.get('source','')}) ===
