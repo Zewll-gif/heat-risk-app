@@ -1,19 +1,25 @@
-# 🌡️ HeatGuard Chiang Mai — เว็บแผนที่ความเสี่ยง Heat Stroke
+# 🌡️ HeatGuard Bangkok
+
+เว็บแอปแสดงแผนที่ความเสี่ยง Heat Stroke รายเขตในกรุงเทพฯ แบบ realtime
+
+🔗 **https://heat-risk-app-production.up.railway.app**
+
+---
 
 ## โครงสร้างโฟลเดอร์
+
 ```
 heat_risk_app/
-├── app.py                  ← FastAPI backend หลัก
-├── start.bat               ← ดับเบิลคลิกเพื่อเปิดเซิร์ฟเวอร์
-├── requirements.txt        ← dependencies
-├── .env                    ← ใส่ ANTHROPIC_API_KEY ที่นี่
-├── config.json             ← จาก Colab export
-├── model.keras             ← จาก Colab export
-├── scaler.pkl              ← จาก Colab export
-├── grid.geojson            ← จาก Colab export
-├── population_summary.csv  ← จาก Colab export
+├── app.py
+├── requirements.txt
+├── .env                    ← ใส่ ANTHROPIC_API_KEY (ห้าม commit)
+├── config.json
+├── model.keras
+├── scaler.pkl
+├── grid.geojson
+├── population_summary.csv
 ├── rag_docs/
-│   └── knowledge_base.md  ← ฐานความรู้ Heat Stroke
+│   └── knowledge_base.md
 ├── static/
 │   ├── css/style.css
 │   └── js/main.js
@@ -21,44 +27,49 @@ heat_risk_app/
     └── index.html
 ```
 
-## วิธีติดตั้ง
+---
 
-### ขั้นตอนที่ 1 — วางไฟล์จาก Colab
-แตก `heat_risk_export.zip` แล้วคัดลอกไฟล์เหล่านี้มาไว้ในโฟลเดอร์นี้:
-- `model.keras` (หรือ `model.h5`)
-- `scaler.pkl`
-- `config.json`
-- `grid.geojson`
-- `population_summary.csv`
+## รันในเครื่อง
 
-### ขั้นตอนที่ 2 — ตั้งค่า API Key
-เปิดไฟล์ `.env` แล้วแก้:
+```bash
+pip install -r requirements.txt
+uvicorn app:app --reload
+```
+
+แล้วเปิด http://localhost:8000
+
+ต้องมีไฟล์ `.env` ที่มี:
 ```
 ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxx
 ```
-รับ API Key ได้ที่: https://console.anthropic.com
-
-### ขั้นตอนที่ 3 — รันเซิร์ฟเวอร์
-ดับเบิลคลิก `start.bat` แล้วรอสักครู่
-
-### ขั้นตอนที่ 4 — เปิดเว็บ
-ไปที่: http://localhost:8000
 
 ---
 
-## ฟีเจอร์ทั้งหมด
+## Deploy
 
-| หน้า | ฟีเจอร์ |
-|------|---------|
-| 🗺️ แผนที่ | แผนที่ realtime 3 layer สลับดูได้ |
-| 📊 พยากรณ์ | กราฟ 24h + ตารางรายตำบล realtime |
-| 🎛️ จำลอง | ปรับอุณหภูมิ/ความชื้น/ลม แล้วดูแผนที่เปลี่ยน |
-| 👤 ตรวจสอบตัวเอง | ถ่ายภาพประมาณอายุ + วิเคราะห์ความเสี่ยงด้วย AI |
-| 💬 ถามผู้ช่วย AI | RAG chatbot ตอบจากฐานความรู้จริง |
+ใช้ Railway เชื่อมกับ GitHub repo นี้ไว้แล้ว push ครั้งไหนก็ deploy อัตโนมัติ
+
+```bash
+git add .
+git commit -m "..."
+git push
+```
+
+Environment variable `ANTHROPIC_API_KEY` ตั้งไว้ใน Railway Dashboard
 
 ---
 
-## หมายเหตุ
-- ถ้า DeepFace (ประมาณอายุจากภาพ) ติดตั้งนานหรือช้า ให้รอสักครู่
-- API Key ต้องมี quota เพียงพอสำหรับ Claude API
-- ข้อมูลอุณหภูมิดึงจาก Open-Meteo (ฟรี ไม่ต้อง key)
+## ฟีเจอร์
+
+- **แผนที่** — แสดงระดับความเสี่ยงรายเขต พร้อม top 5 เขตเสี่ยงสูงสุด
+- **พยากรณ์ 24h** — กราฟและตารางอุณหภูมิล่วงหน้า
+- **จำลองสถานการณ์** — ปรับค่าอุณหภูมิ ความชื้น ลม แล้วดูผลบนแผนที่
+- **ความเสี่ยงส่วนตัว** — วิเคราะห์ความเสี่ยงจากข้อมูลสุขภาพส่วนตัว
+- **AI ผู้ช่วย** — ถาม-ตอบเรื่อง Heat Stroke
+
+---
+
+## ข้อมูล
+
+- อุณหภูมิ/สภาพอากาศ: [Open-Meteo](https://open-meteo.com)
+- แผนที่: Mapbox
