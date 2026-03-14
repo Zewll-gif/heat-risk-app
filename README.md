@@ -1,75 +1,61 @@
-# 🌡️ HeatGuard Bangkok
+HeatGuard Bangkok
+Real-time Heat Stroke Risk Map for Bangkok Districts
 
-เว็บแอปแสดงแผนที่ความเสี่ยง Heat Stroke รายเขตในกรุงเทพฯ แบบ realtime
+เว็บแอปพลิเคชันสำหรับตรวจสอบความเสี่ยงฮีทสโตรกรายเขตในกรุงเทพมหานครแบบเรียลไทม์ โดยคำนวณจากข้อมูลสภาพอากาศจริงร่วมกับโมเดลวิเคราะห์ความเสี่ยงรายบุคคล
 
-🔗 **https://heat-risk-app-production.up.railway.app**
+Live Demo: heat-risk-app-production.up.railway.app
 
----
+Project Structure
+โปรเจกต์นี้พัฒนาด้วย FastAPI และใช้ Mapbox สำหรับการแสดงผลแผนที่
 
-## โครงสร้างโฟลเดอร์
-
-```
+Plaintext
 heat_risk_app/
-├── app.py
-├── requirements.txt
-├── .env                    ← ใส่ ANTHROPIC_API_KEY (ห้าม commit)
-├── config.json
-├── model.keras
-├── scaler.pkl
-├── grid.geojson
-├── population_summary.csv
-├── rag_docs/
+├── app.py                # Main backend logic (FastAPI)
+├── requirements.txt      # Dependencies
+├── .env                  # API Keys (Local only)
+├── config.json           # App configurations
+├── model.keras           # AI Model สำหรับทำนายความเสี่ยง
+├── scaler.pkl            # Data scaling
+├── grid.geojson          # ขอบเขตรายเขตของ กทม.
+├── population_summary.csv # ข้อมูลประชากรพื้นฐาน
+├── rag_docs/             # Knowledge base สำหรับ AI Chatbot
 │   └── knowledge_base.md
-├── static/
-│   ├── css/style.css
-│   └── js/main.js
-└── templates/
-    └── index.html
-```
+├── static/               # Assets (CSS/JS)
+└── templates/            # HTML Templates
+Getting Started
+1. การติดตั้งและรันในเครื่อง (Local)
+คัดลอกไฟล์ .env.example เป็น .env และระบุ API Key:
 
----
+ข้อมูลโค้ด
+ANTHROPIC_API_KEY=your_key_here
+รันคำสั่งเพื่อติดตั้งและเริ่มใช้งาน:
 
-## รันในเครื่อง
-
-```bash
+Bash
 pip install -r requirements.txt
 uvicorn app:app --reload
-```
+เข้าใช้งานผ่านเบราว์เซอร์ที่: http://localhost:8000
 
-แล้วเปิด http://localhost:8000
+2. การ Deployment
+โปรเจกต์นี้รองรับ CI/CD ผ่าน Railway เมื่อทำการ Push code ขึ้น GitHub ระบบจะดำเนินการ Deploy โดยอัตโนมัติ:
 
-ต้องมีไฟล์ `.env` ที่มี:
-```
-ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxx
-```
-
----
-
-## Deploy
-
-ใช้ Railway เชื่อมกับ GitHub repo นี้ไว้แล้ว push ครั้งไหนก็ deploy อัตโนมัติ
-
-```bash
+Bash
 git add .
-git commit -m "..."
-git push
-```
+git commit -m "Update"
+git push origin main
+หมายเหตุ: ตรวจสอบการตั้งค่า ANTHROPIC_API_KEY ใน Railway Dashboard
 
-Environment variable `ANTHROPIC_API_KEY` ตั้งไว้ใน Railway Dashboard
+Key Features
+Live Risk Map: แสดงระดับความเสี่ยงแยกตามเขต พร้อมอันดับ Top 5 เขตเฝ้าระวัง
 
----
+24h Forecast: แสดงกราฟพยากรณ์อุณหภูมิและความเสี่ยงล่วงหน้า 24 ชั่วโมง
 
-## ฟีเจอร์
+Simulator: ระบบจำลองสถานการณ์โดยปรับค่าอุณหภูมิ ความชื้น และความเร็วลม
 
-- **แผนที่** — แสดงระดับความเสี่ยงรายเขต พร้อม top 5 เขตเสี่ยงสูงสุด
-- **พยากรณ์ 24h** — กราฟและตารางอุณหภูมิล่วงหน้า
-- **จำลองสถานการณ์** — ปรับค่าอุณหภูมิ ความชื้น ลม แล้วดูผลบนแผนที่
-- **ความเสี่ยงส่วนตัว** — วิเคราะห์ความเสี่ยงจากข้อมูลสุขภาพส่วนตัว
-- **AI ผู้ช่วย** — ถาม-ตอบเรื่อง Heat Stroke
+Personal Risk: วิเคราะห์ความเสี่ยงเฉพาะบุคคลตามข้อมูลสุขภาพ
 
----
+AI Assistant: ระบบตอบคำถามเกี่ยวกับการป้องกันฮีทสโตรก (Powered by Claude)
 
-## ข้อมูล
+Data Sources
+Weather Data: Open-Meteo API
 
-- อุณหภูมิ/สภาพอากาศ: [Open-Meteo](https://open-meteo.com)
-- แผนที่: Mapbox
+Map Engine: Mapbox GL JS
